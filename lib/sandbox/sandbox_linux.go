@@ -128,19 +128,15 @@ func (n *NetNs) Remove() error {
 
 	n.closed = true
 
-    // we got namespaces in the form of
-	// /var/run/$NSTYPEns/$NSTYPE-d08effa-06eb-a963-f51a-e2b0eceffc5d
+	// we got namespaces in the form of
+	// /var/run/netns/cni-0d08effa-06eb-a963-f51a-e2b0eceffc5d
 	// but /var/run on most system is symlinked to /run so we first resolve
 	// the symlink and then try and see if it's mounted
-	fp, err := securejoin.SecureJoin("/", n.Path())
+	fp, err := symlink.FollowSymlinkInScope(n.Path(), "/")
 	if err != nil {
-		return errors.Wrapf(err, "unable to join '/' with %s path", n.Path())
+		return err
 	}
-	mounted, err := mount.Mounted(fp)
-	if err != nil {
-		return errors.Wrap(err, "unable to check if path is mounted")
-	}
-	if mounted {
+    if mounted, err := mount.Mounted(fp); err == nil && mounted {
 		if err := unix.Unmount(fp, unix.MNT_DETACH); err != nil {
 			return err
 		}
